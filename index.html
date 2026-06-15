@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>車両管理アプリ デモ（デイリーメグ）</title>
+<style>
+  :root{
+    --bg:#eef1f4;
+    --card:#ffffff;
+    --ink:#1f2933;
+    --sub:#6b7785;
+    --line:#e2e7ec;
+    --brand:#1d6fb8;
+    --brand-d:#155a96;
+    --ok:#1f9d55;
+    --ng:#d64545;
+    --ng-bg:#fdecec;
+    --warn:#c47f17;
+    --warn-bg:#fdf3e2;
+    --badge-retire:#8a94a0;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+    color:var(--ink);
+    font-size:15px;
+    line-height:1.5;
+  }
+  .app{
+    max-width:420px;
+    margin:0 auto;
+    background:var(--bg);
+    min-height:100vh;
+    position:relative;
+    padding-bottom:72px;
+  }
+  /* header */
+  .hd{
+    background:var(--brand);
+    color:#fff;
+    padding:12px 16px 10px;
+    position:sticky;top:0;z-index:20;
+    display:flex;align-items:center;gap:8px;
+  }
+  .hd .title{font-size:16px;font-weight:700;}
+  .hd .sub{font-size:11px;opacity:.85;}
+  .hd .demo-tag{
+    margin-left:auto;font-size:9px;background:rgba(255,255,255,.2);
+    padding:2px 7px;border-radius:8px;letter-spacing:.02em;white-space:nowrap;
+  }
+  .back{
+    background:rgba(255,255,255,.18);border:0;color:#fff;font-size:13px;
+    padding:4px 10px;border-radius:8px;font-weight:600;cursor:pointer;
+  }
+  /* role toggle bar */
+  .rolebar{
+    background:#dde8f3;border-bottom:1px solid #c7d6e6;
+    padding:8px 14px;display:flex;align-items:center;gap:10px;
+    position:sticky;top:48px;z-index:19;
+  }
+  .rolebar-cap{font-size:11px;color:var(--brand-d);font-weight:700;white-space:nowrap;}
+  .roleseg{display:flex;border:1px solid var(--brand);border-radius:9px;overflow:hidden;flex:1;}
+  .roleseg button{
+    flex:1;border:0;background:#fff;padding:7px 4px;font-size:12.5px;font-weight:700;
+    cursor:pointer;color:var(--brand);border-right:1px solid var(--brand);
+  }
+  .roleseg button:last-child{border-right:0;}
+  .roleseg button.on{background:var(--brand);color:#fff;}
+  /* content */
+  .wrap{padding:14px 14px 20px;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  h2.sec{font-size:14px;margin:0 0 10px;color:var(--sub);font-weight:700;}
+  /* card */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;margin-bottom:10px;
+  }
+  .card.tap{cursor:pointer;transition:.1s;}
+  .card.tap:active{transform:scale(.99);background:#f7f9fb;}
+  /* vehicle list */
+  .filterbar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--sub);
+    padding:6px 12px;border-radius:18px;font-size:13px;cursor:pointer;font-weight:600;white-space:nowrap;
+  }
+  .chip.on{background:var(--brand);color:#fff;border-color:var(--brand);}
+  .vrow{display:flex;align-items:center;gap:10px;}
+  .vno{
+    flex:0 0 46px;height:46px;border-radius:10px;background:#eaf2fa;color:var(--brand-d);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;
+  }
+  .vmeta{flex:1;min-width:0;}
+  .vmeta .l1{font-weight:700;font-size:15px;}
+  .vmeta .l2{font-size:12px;color:var(--sub);}
+  .color-dot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid #0002;vertical-align:middle;margin-right:3px;}
+  .badge{font-size:10px;padding:2px 7px;border-radius:7px;font-weight:700;white-space:nowrap;}
+  .badge.active{background:#e8f6ee;color:var(--ok);}
+  .badge.retire{background:#eceff2;color:var(--badge-retire);}
+  .badge.warn{background:var(--warn-bg);color:var(--warn);}
+  /* progress (進行中) banner */
+  .progress-banner{
+    background:var(--warn-bg);border:1px solid #f0dcb4;border-radius:12px;
+    padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;cursor:pointer;
+  }
+  .progress-banner .ic{font-size:20px;}
+  .progress-banner .t{font-weight:700;font-size:14px;color:var(--warn);}
+  .progress-banner .s{font-size:12px;color:#9a7a3a;}
+  /* buttons */
+  .btn{
+    display:block;width:100%;border:0;border-radius:12px;padding:14px;
+    font-size:16px;font-weight:700;cursor:pointer;text-align:center;
+  }
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-primary:active{background:var(--brand-d);}
+  .btn-ghost{background:#fff;color:var(--brand);border:1.5px solid var(--brand);}
+  .btn-danger{background:var(--ng);color:#fff;}
+  .btn-row{display:flex;gap:8px;}
+  .btn-row .btn{flex:1;}
+  .btn-sm{padding:9px;font-size:13px;border-radius:10px;}
+  /* entry points */
+  .entry-card{
+    text-align:center;padding:22px 16px;
+  }
+  .entry-card .ic{font-size:38px;margin-bottom:6px;}
+  .entry-card .t{font-weight:700;font-size:16px;margin-bottom:3px;}
+  .entry-card .d{font-size:12px;color:var(--sub);}
+  /* form */
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px;}
+  .field .auto{font-size:11px;color:var(--brand);font-weight:600;margin-left:6px;}
+  .field input, .field textarea, .field select{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font-size:16px;font-family:inherit;color:var(--ink);background:#fff;
+  }
+  .field input[readonly]{background:#f4f6f8;color:var(--sub);}
+  .field .hint{font-size:11px;color:var(--sub);margin-top:4px;}
+  .km-row{display:flex;gap:8px;align-items:flex-end;}
+  .km-row .field{flex:1;margin-bottom:0;}
+  .calc{
+    background:#eaf2fa;border-radius:10px;padding:10px 12px;margin-bottom:14px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .calc .k{font-size:13px;color:var(--sub);font-weight:600;}
+  .calc .v{font-size:20px;font-weight:800;color:var(--brand-d);}
+  /* inspection */
+  .insp{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line);}
+  .insp:last-child{border-bottom:0;}
+  .insp .nm{font-size:14px;font-weight:600;}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+  .seg button{
+    border:0;background:#fff;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;color:var(--sub);
+  }
+  .seg button.ok-on{background:var(--ok);color:#fff;}
+  .seg button.ng-on{background:var(--ng);color:#fff;}
+  .section-title{font-size:13px;font-weight:700;margin:4px 0 6px;display:flex;align-items:center;justify-content:space-between;}
+  .toggle-collapse{font-size:12px;color:var(--brand);background:none;border:0;cursor:pointer;font-weight:600;}
+  .collapsible{margin-bottom:10px;}
+  /* fuel check */
+  .alert-row{
+    background:var(--ng-bg);border:1px solid #f3c9c9;border-radius:11px;padding:11px 12px;margin-bottom:9px;
+  }
+  .alert-row.ok{background:#fff;border-color:var(--line);}
+  .alert-row .top{display:flex;justify-content:space-between;align-items:center;}
+  .alert-row .reason{font-size:12px;color:var(--ng);font-weight:700;margin-top:4px;}
+  .alert-row.ok .reason{color:var(--ok);}
+  .mono{font-variant-numeric:tabular-nums;}
+  .small{font-size:12px;color:var(--sub);}
+  /* maint */
+  .maint-card{border-left:4px solid var(--warn);}
+  .maint-card.soon{border-left-color:var(--ng);}
+  .maint-card .head{display:flex;justify-content:space-between;align-items:center;}
+  .maint-card .big{font-size:18px;font-weight:800;}
+  .maint-card .big.red{color:var(--ng);}
+  .maint-card .big.amber{color:var(--warn);}
+  /* bottom nav */
+  .nav{
+    position:fixed;bottom:0;left:0;right:0;max-width:420px;margin:0 auto;
+    background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;
+  }
+  .nav button{
+    flex:1;border:0;background:none;padding:8px 0 6px;cursor:pointer;color:var(--sub);
+    font-size:10.5px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:600;
+  }
+  .nav button .ni{font-size:19px;line-height:1;}
+  .nav button.on{color:var(--brand);}
+  .nav button .dot{
+    position:absolute;margin-top:-2px;margin-left:14px;background:var(--ng);color:#fff;
+    font-size:9px;min-width:15px;height:15px;border-radius:8px;line-height:15px;font-weight:700;
+  }
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:88px;transform:translateX(-50%);
+    background:#1f2933;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
+    z-index:60;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center;
+  }
+  .toast.show{opacity:1;}
+  /* summary modal */
+  .modal-bg{
+    position:fixed;inset:0;background:#0006;display:none;align-items:center;justify-content:center;z-index:70;padding:24px;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:16px;padding:22px 20px;max-width:340px;width:100%;text-align:center;}
+  .modal .ic{font-size:42px;}
+  .modal h3{margin:6px 0 4px;font-size:18px;}
+  .modal .sumline{display:flex;justify-content:space-around;margin:14px 0;}
+  .modal .sumline .v{font-size:22px;font-weight:800;color:var(--brand-d);}
+  .modal .sumline .k{font-size:11px;color:var(--sub);}
+  .pill{display:inline-block;background:#eaf2fa;color:var(--brand-d);font-size:11px;font-weight:700;padding:3px 9px;border-radius:8px;margin-bottom:8px;}
+  .vehicle-banner{
+    background:#eaf2fa;border-radius:11px;padding:11px 13px;margin-bottom:14px;display:flex;align-items:center;gap:10px;
+  }
+  .vehicle-banner .vno{flex:0 0 40px;height:40px;font-size:14px;}
+  .vehicle-banner .l1{font-weight:800;font-size:15px;}
+  .vehicle-banner .l2{font-size:12px;color:var(--sub);}
+  /* qr scan animation */
+  .qrbox{
+    width:200px;height:200px;margin:24px auto;border-radius:16px;background:#111;position:relative;overflow:hidden;
+  }
+  .qrbox .frame{position:absolute;inset:18px;border:3px solid #fff;border-radius:10px;}
+  .qrbox .laser{position:absolute;left:18px;right:18px;height:3px;background:#3fd17a;box-shadow:0 0 8px #3fd17a;animation:scan 1.1s linear infinite;}
+  @keyframes scan{0%{top:20px;}50%{top:178px;}100%{top:20px;}}
+  .center{text-align:center;}
+  .pick-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .pick-row:last-child{border-bottom:0;}
+  .default-tag{font-size:10px;background:#eaf2fa;color:var(--brand-d);padding:2px 7px;border-radius:7px;font-weight:700;}
+  /* PC/スプレッドシート併用の控えめな注記（管理者ホームのみ） */
+  .sheet-note{
+    background:#eaf2fa;border:1px solid #cfe0f1;border-radius:11px;
+    padding:9px 12px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px;
+  }
+  .sheet-note .ic{font-size:15px;line-height:1.4;}
+  .sheet-note .tx{font-size:11.5px;color:var(--brand-d);line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hd">
+    <button class="back" id="backBtn" style="display:none;" onclick="goBack()">‹ 戻る</button>
+    <div>
+      <div class="title" id="hdTitle">車両管理</div>
+      <div class="sub">デイリーメグ ／ <span id="roleLabel">管理者</span></div>
+    </div>
+    <div class="demo-tag">DEMO（ダミーデータ）</div>
+  </div>
+
+  <!-- 役割切替トグル（デモ用：権限で見える範囲が変わる） -->
+  <div class="rolebar">
+    <span class="rolebar-cap">役割切替（デモ）</span>
+    <div class="roleseg" id="roleSeg">
+      <button data-role="admin" class="on" onclick="setRole('admin')">管理者</button>
+      <button data-role="manager" onclick="setRole('manager')">店長</button>
+      <button data-role="driver" onclick="setRole('driver')">担当者</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- ===== 一覧 / ホーム ===== -->
+    <div class="screen active" id="sc-list">
+      <div id="sheetNote"></div>
+      <div id="progressArea"></div>
+      <div class="filterbar" id="filterbar"></div>
+      <div id="vehicleList"></div>
+    </div>
+
+    <!-- ===== 車両特定（入口選択） ===== -->
+    <div class="screen" id="sc-pick">
+      <h2 class="sec">日報をつける車両を特定</h2>
+      <div class="card entry-card tap" onclick="startQrScan()">
+        <div class="ic">▣</div>
+        <div class="t">QRスキャン</div>
+        <div class="d">車両のQRを読むと、その車両で日報が開きます（押し間違いゼロ）</div>
+      </div>
+      <div class="card entry-card tap" onclick="showWoffPick()">
+        <div class="ic">☰</div>
+        <div class="t">LINE WORKSから選ぶ</div>
+        <div class="d">所属店舗の車だけに絞って表示。前回乗った車が初期選択</div>
+      </div>
+      <p class="small center">※ 実機では QR は LINE WORKS アプリ内で開き、本人が自動で特定されます（デモは擬似）</p>
+    </div>
+
+    <!-- ===== QRスキャン擬似画面 ===== -->
+    <div class="screen" id="sc-qr">
+      <h2 class="sec">QRスキャン中…</h2>
+      <div class="qrbox"><div class="frame"></div><div class="laser"></div></div>
+      <p class="center small">車両に貼られたQRにカメラを向けています（擬似）</p>
+      <button class="btn btn-primary" onclick="qrConfirm()">QRを読み取った（ランダムな車両で開く）</button>
+    </div>
+
+    <!-- ===== LINE WORKS 店舗絞り込み選択 ===== -->
+    <div class="screen" id="sc-woff">
+      <h2 class="sec">店舗の車から選ぶ（額田中央店）</h2>
+      <div class="card" id="woffPickList"></div>
+      <p class="small center">所属店舗の3〜5台だけに絞っています</p>
+    </div>
+
+    <!-- ===== 日報入力 ===== -->
+    <div class="screen" id="sc-report">
+      <div class="pill" id="reportStatePill">出発入力</div>
+      <div class="vehicle-banner" id="reportVehicle"></div>
+
+      <div class="field">
+        <label>担当者 <span class="auto">自動</span></label>
+        <input type="text" id="fDriver" value="鈴木 太郎" readonly>
+      </div>
+      <div class="field">
+        <label>使用日 <span class="auto">自動</span></label>
+        <input type="text" id="fDate" readonly>
+      </div>
+
+      <!-- 出発ブロック -->
+      <div id="departBlock">
+        <div class="km-row">
+          <div class="field">
+            <label>出発㎞ <span class="auto" id="prevKmTag"></span></label>
+            <input type="number" id="fStartKm" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label>開始時刻 <span class="auto">打刻（修正可）</span></label>
+            <input type="time" id="fStartTime">
+          </div>
+        </div>
+
+        <div class="section-title">
+          <span>出発前点検（6項目）</span>
+          <button class="btn btn-sm btn-ghost" style="width:auto;padding:6px 12px;" onclick="allOk()">まとめてOK</button>
+        </div>
+        <div class="card" id="inspList"></div>
+      </div>
+
+      <!-- 帰社ブロック -->
+      <div id="returnBlock" style="display:none;">
+        <div class="card" id="departReview" style="background:#f3f7fb;border:1px solid #d8e4f0;margin-bottom:14px;"></div>
+        <div class="km-row">
+          <div class="field">
+            <label>帰社㎞</label>
+            <input type="number" id="fEndKm" inputmode="numeric" oninput="calcDistance()">
+          </div>
+          <div class="field">
+            <label>帰社時刻 <span class="auto">打刻（修正可）</span></label>
+            <input type="time" id="fEndTime">
+          </div>
+        </div>
+        <div class="calc">
+          <span class="k">走行距離（自動計算）</span>
+          <span class="v" id="distVal">— km</span>
+        </div>
+
+        <div class="collapsible">
+          <div class="section-title">
+            <span>給油（した時だけ）</span>
+            <button class="toggle-collapse" onclick="toggleBlock('fuelWrap', this)">＋ 入力する</button>
+          </div>
+          <div id="fuelWrap" style="display:none;">
+            <div class="km-row">
+              <div class="field"><label>給油量(ℓ)</label><input type="number" id="fFuelL" inputmode="decimal"></div>
+              <div class="field"><label>金額(円)</label><input type="number" id="fFuelYen" inputmode="numeric"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="collapsible">
+          <div class="section-title">
+            <span>庫内温度（冷蔵車だけ）</span>
+            <button class="toggle-collapse" onclick="toggleBlock('tempWrap', this)">＋ 入力する</button>
+          </div>
+          <div id="tempWrap" style="display:none;">
+            <div class="km-row">
+              <div class="field"><label>庫内温度(℃)</label><input type="number" id="fTemp" inputmode="decimal" value="3"></div>
+              <div class="field"><label>計測時刻 <span class="auto">自動</span></label><input type="time" id="fTempTime"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>備考（異常があれば理由を記入）</label>
+          <textarea id="fNote" rows="2" placeholder="異常なし。あれば内容を記入。"></textarea>
+        </div>
+      </div>
+
+      <!-- 操作ボタン -->
+      <div id="reportActions"></div>
+    </div>
+
+    <!-- ===== 自分の過去日報（担当者向け） ===== -->
+    <div class="screen" id="sc-history">
+      <div id="progressAreaHist"></div>
+      <h2 class="sec">自分の過去日報（鈴木 太郎）</h2>
+      <div id="historyList"></div>
+      <p class="small center">※ 実機では自分が記録した日報だけが表示されます（他人の日報は見えません）</p>
+    </div>
+
+    <!-- ===== 給油チェック ===== -->
+    <div class="screen" id="sc-fuel">
+      <h2 class="sec">給油の不正チェック（カード明細 × 日報）</h2>
+      <div class="card" style="padding:10px 12px;">
+        <div class="small">対象期間：2026/06/01 - 06/14 ／ ガソリンカード明細 38件・日報の給油 35件</div>
+      </div>
+      <div id="fuelAlerts"></div>
+      <p class="small center">※ 本番はカードCSVを自動取込して毎日突合します</p>
+    </div>
+
+    <!-- ===== メンテリマインド ===== -->
+    <div class="screen" id="sc-maint">
+      <h2 class="sec">メンテ・リマインド</h2>
+      <div id="maintList"></div>
+      <p class="small center">※ 車検は日付、オイル・消耗品は走行kmで自動判定</p>
+    </div>
+  </div>
+
+  <!-- bottom nav（役割により描画内容が変わる） -->
+  <div class="nav" id="nav"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- summary modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <div class="ic">✅</div>
+    <h3>本日の運行を記録しました</h3>
+    <div class="sumline">
+      <div><div class="v" id="sumKm">—</div><div class="k">走行距離</div></div>
+      <div><div class="v" id="sumFuel">—</div><div class="k">給油</div></div>
+    </div>
+    <button class="btn btn-primary" onclick="closeModal()">一覧へ戻る</button>
+  </div>
+</div>
+
+<script>
+/* ===================== ダミーデータ ===================== */
+const STORES = ["額田中央店","岡崎店","豊田店","幸田店","西尾店"];
+
+// 22台（現役19・退役3）。所属店舗・色・ナンバー下4桁・車種・退役フラグ
+// 全車両を軽自動車のバン（軽バン）に統一。冷蔵仕様は「軽バン（冷蔵）」と表記（reefer フラグは庫内温度入力の出し分けに使用）。
+const VEHICLES = [
+  // 額田中央店
+  {id:1, no:"1号車", store:"額田中央店", type:"軽バン（冷蔵）", plate:"4521", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:84210},
+  {id:2, no:"2号車", store:"額田中央店", type:"軽バン", plate:"1182", color:"白",   colorHex:"#ffffff", active:true,  reefer:false, lastEndKm:52310},
+  {id:3, no:"3号車", store:"額田中央店", type:"軽バン",   plate:"7790", color:"銀",   colorHex:"#c8ccd0", active:true,  reefer:false, lastEndKm:31040},
+  {id:4, no:"4号車", store:"額田中央店", type:"軽バン（冷蔵）", plate:"3308", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:97650},
+  {id:5, no:"5号車", store:"額田中央店", type:"軽バン", plate:"6612", color:"青",   colorHex:"#3b6fb5", active:false, reefer:false, lastEndKm:128900, retireDate:"2025-11"},
+  // 岡崎店
+  {id:6, no:"1号車", store:"岡崎店",     type:"軽バン（冷蔵）", plate:"2240", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:67120},
+  {id:7, no:"2号車", store:"岡崎店",     type:"軽バン",   plate:"8853", color:"銀",   colorHex:"#c8ccd0", active:true,  reefer:false, lastEndKm:44900},
+  {id:8, no:"3号車", store:"岡崎店",     type:"軽バン", plate:"1907", color:"白",   colorHex:"#ffffff", active:true,  reefer:false, lastEndKm:73450},
+  {id:9, no:"4号車", store:"岡崎店",     type:"軽バン", plate:"5561", color:"黒",   colorHex:"#2b2f33", active:true,  reefer:false, lastEndKm:21880},
+  {id:10,no:"5号車", store:"岡崎店",     type:"軽バン（冷蔵）", plate:"4099", color:"白",   colorHex:"#ffffff", active:false, reefer:true,  lastEndKm:154300, retireDate:"2025-08"},
+  // 豊田店
+  {id:11,no:"1号車", store:"豊田店",     type:"軽バン（冷蔵）", plate:"3372", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:59340},
+  {id:12,no:"2号車", store:"豊田店",     type:"軽バン",   plate:"6028", color:"赤",   colorHex:"#c0392b", active:true,  reefer:false, lastEndKm:38770},
+  {id:13,no:"3号車", store:"豊田店",     type:"軽バン", plate:"7715", color:"銀",   colorHex:"#c8ccd0", active:true,  reefer:false, lastEndKm:88210},
+  {id:14,no:"4号車", store:"豊田店",     type:"軽バン", plate:"1456", color:"白",   colorHex:"#ffffff", active:true,  reefer:false, lastEndKm:14220},
+  // 幸田店
+  {id:15,no:"1号車", store:"幸田店",     type:"軽バン（冷蔵）", plate:"2901", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:71550},
+  {id:16,no:"2号車", store:"幸田店",     type:"軽バン", plate:"3344", color:"白",   colorHex:"#ffffff", active:true,  reefer:false, lastEndKm:49600},
+  {id:17,no:"3号車", store:"幸田店",     type:"軽バン",   plate:"8120", color:"銀",   colorHex:"#c8ccd0", active:true,  reefer:false, lastEndKm:26780},
+  {id:18,no:"4号車", store:"幸田店",     type:"軽バン", plate:"5507", color:"青",   colorHex:"#3b6fb5", active:false, reefer:false, lastEndKm:142100, retireDate:"2025-06"},
+  // 西尾店
+  {id:19,no:"1号車", store:"西尾店",     type:"軽バン（冷蔵）", plate:"4733", color:"白",   colorHex:"#ffffff", active:true,  reefer:true,  lastEndKm:63990},
+  {id:20,no:"2号車", store:"西尾店",     type:"軽バン",   plate:"6640", color:"銀",   colorHex:"#c8ccd0", active:true,  reefer:false, lastEndKm:35420},
+  {id:21,no:"3号車", store:"西尾店",     type:"軽バン", plate:"1278", color:"白",   colorHex:"#ffffff", active:true,  reefer:false, lastEndKm:80130},
+  {id:22,no:"4号車", store:"西尾店",     type:"軽バン", plate:"9985", color:"黒",   colorHex:"#2b2f33", active:true,  reefer:false, lastEndKm:18650},
+];
+
+const INSPECT_ITEMS = ["タイヤ","ブレーキ","ライト","車体","キズ","異常"];
+
+// 給油不正チェック（ダミー）
+const FUEL_ALERTS = [
+  {flag:true,  vehicle:"岡崎店 1号車", plate:"2240", date:"06/05", liters:"42.0", yen:"6,720", reason:"⚠ 日報に給油記録なし（カードのみ）"},
+  {flag:true,  vehicle:"豊田店 3号車", plate:"7715", date:"06/09", liters:"38.0 / 40.0", yen:"6,080 / 6,400", reason:"⚠ 同日に2回給油（二重給油の疑い）"},
+  {flag:true,  vehicle:"西尾店 1号車", plate:"4733", date:"06/12", liters:"55.0", yen:"8,800", reason:"⚠ 走行距離に対し給油量が過多（前回比+38%）"},
+  {flag:false, vehicle:"額田中央店 1号車", plate:"4521", date:"06/13", liters:"45.0", yen:"7,200", reason:"✓ 日報と一致"},
+  {flag:false, vehicle:"幸田店 1号車", plate:"2901", date:"06/14", liters:"40.0", yen:"6,400", reason:"✓ 日報と一致"},
+];
+
+// メンテリマインド（ダミー）
+const MAINT = [
+  {soon:true,  vehicle:"岡崎店 1号車", plate:"2240", kind:"車検満了", metric:"あと 8 日", detail:"満了日 2026/06/23 ／ 早めの予約を", basis:"日付"},
+  {soon:true,  vehicle:"豊田店 3号車", plate:"7715", kind:"オイル交換", metric:"あと 420 km", detail:"前回 84,000km ／ 次回 88,630km（5,000km毎）", basis:"走行km"},
+  {soon:false, vehicle:"額田中央店 4号車", plate:"3308", kind:"オイル交換", metric:"あと 1,350 km", detail:"前回 92,300km ／ 次回 99,000km", basis:"走行km"},
+];
+
+// 担当者向け：自分の過去日報（ダミー）
+const MY_HISTORY = [
+  {date:"2026/06/13（金）", vehicle:"額田中央店 2号車", plate:"1182", dist:"42 km", fuel:"なし"},
+  {date:"2026/06/12（木）", vehicle:"額田中央店 2号車", plate:"1182", dist:"58 km", fuel:"30.0 ℓ"},
+  {date:"2026/06/11（水）", vehicle:"額田中央店 3号車", plate:"7790", dist:"35 km", fuel:"なし"},
+  {date:"2026/06/10（火）", vehicle:"額田中央店 2号車", plate:"1182", dist:"47 km", fuel:"なし"},
+];
+
+/* ===================== 状態 ===================== */
+let currentRole = "admin";     // admin（管理者）| manager（店長）| driver（担当者）
+const MANAGER_STORE = "額田中央店"; // 店長のログイン店舗（デモ固定）
+let currentFilter = "全店舗";
+let currentVehicle = null;     // 入力中の車両
+let reportPhase = "depart";    // depart | return
+let inspState = {};            // 点検: name -> "ok"|"ng"|null
+let navStack = [];             // 戻る用
+const LS_KEY = "megumilk_demo_progress_v1";
+
+// 役割ごとの定義
+const ROLE_LABEL = {admin:"管理者", manager:"店長（額田中央店）", driver:"担当者"};
+// 役割ごとの bottom nav 構成
+const ROLE_NAV = {
+  admin:   [{sc:"list",ni:"☷",t:"一覧"},{sc:"fuel",ni:"⛽",t:"給油チェック"},{sc:"maint",ni:"🔧",t:"メンテ"},{sc:"pick",ni:"＋",t:"日報"}],
+  manager: [{sc:"list",ni:"☷",t:"一覧"},{sc:"fuel",ni:"⛽",t:"給油チェック"},{sc:"maint",ni:"🔧",t:"メンテ"},{sc:"pick",ni:"＋",t:"日報"}],
+  driver:  [{sc:"pick",ni:"＋",t:"日報"},{sc:"history",ni:"🕒",t:"履歴"}],
+};
+// 役割ごとの起動（ホーム）画面
+const ROLE_HOME = {admin:"list", manager:"list", driver:"pick"};
+
+/* ===================== ユーティリティ ===================== */
+function $(id){return document.getElementById(id);}
+function todayStr(){
+  const d = new Date();
+  const w = ["日","月","火","水","木","金","土"][d.getDay()];
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}（${w}）`;
+}
+function nowTime(){
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+function fmt(n){return Number(n).toLocaleString("ja-JP");}
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("show"), 1900);
+}
+
+/* ===================== 画面遷移 ===================== */
+const SCREENS = ["list","pick","qr","woff","report","fuel","maint","history"];
+const TITLES = {list:"車両一覧",pick:"日報をつける",qr:"QRスキャン",woff:"車両を選ぶ",report:"運行日報",fuel:"給油チェック",maint:"メンテ",history:"過去日報"};
+// bottom nav 対象（役割ごとに変動）
+function navScreens(){ return ROLE_NAV[currentRole].map(n=>n.sc); }
+
+function showScreen(name, pushStack=true){
+  const NAV_SCREENS = navScreens();
+  const home = ROLE_HOME[currentRole];
+  if(pushStack){ const cur = SCREENS.find(s=>$("sc-"+s).classList.contains("active")); if(cur && cur!==name) navStack.push(cur); }
+  SCREENS.forEach(s=>$("sc-"+s).classList.toggle("active", s===name));
+  $("hdTitle").textContent = TITLES[name]||"車両管理";
+  // back button: nav画面（かつ stack 空）・ホーム画面では非表示
+  $("backBtn").style.display = (NAV_SCREENS.includes(name) && navStack.length===0) || name===home ? "none" : "inline-block";
+  // nav highlight
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on", b.dataset.sc===name));
+  window.scrollTo(0,0);
+}
+function navTo(name){ navStack=[]; showScreen(name,false); $("backBtn").style.display="none"; if(name==="list") renderList(); if(name==="history") renderHistory(); }
+function goBack(){
+  const NAV_SCREENS = navScreens();
+  const home = ROLE_HOME[currentRole];
+  const prev = navStack.pop();
+  if(prev){ showScreen(prev,false); $("backBtn").style.display = (prev===home || (NAV_SCREENS.includes(prev)&&navStack.length===0))?"none":"inline-block"; if(prev==="list")renderList(); if(prev==="history")renderHistory(); }
+  else navTo(home);
+}
+
+/* ===================== 一覧 ===================== */
+function renderFilters(){
+  const fb = $("filterbar");
+  if(currentRole==="manager"){
+    // 店長：自店舗で固定（他店舗は選べない）。チップは固定表示のみ。
+    fb.innerHTML = `<button class="chip on" disabled style="opacity:1;cursor:default;">${MANAGER_STORE}（自店舗）</button>`;
+    return;
+  }
+  const opts = ["全店舗",...STORES];
+  fb.innerHTML = opts.map(o=>`<button class="chip ${o===currentFilter?'on':''}" onclick="setFilter('${o}')">${o}</button>`).join("");
+}
+function setFilter(f){ if(currentRole==="manager") return; currentFilter=f; renderFilters(); renderVehicleRows(); }
+
+// 役割に応じた閲覧可能な車両（店長は自店舗のみ）
+function visibleVehicles(){
+  if(currentRole==="manager") return VEHICLES.filter(v=>v.store===MANAGER_STORE);
+  return VEHICLES;
+}
+// 役割に応じた店舗名フィルタ（給油チェック・メンテで使用。表記は "店舗名 N号車"）
+function isStoreVisible(label){
+  if(currentRole==="manager") return label.startsWith(MANAGER_STORE);
+  return true;
+}
+
+function renderProgress(){
+  const area = $("progressArea");
+  const prog = loadProgress();
+  if(prog){
+    const v = VEHICLES.find(x=>x.id===prog.vehicleId);
+    area.innerHTML = `
+      <div class="progress-banner" onclick="resumeReport()">
+        <div class="ic">🕒</div>
+        <div style="flex:1;">
+          <div class="t">進行中の日報があります</div>
+          <div class="s">${v.store} ${v.no}（…${v.plate}） ／ 出発 ${prog.startTime} ・出発㎞ ${fmt(prog.startKm)} ／ タップで帰社入力へ</div>
+        </div>
+        <div style="font-size:18px;color:var(--warn);">›</div>
+      </div>`;
+  } else area.innerHTML = "";
+}
+
+function renderVehicleRows(){
+  const list = $("vehicleList");
+  const base = visibleVehicles();
+  const filt = currentRole==="manager" ? MANAGER_STORE : currentFilter;
+  const rows = base.filter(v=>filt==="全店舗"||v.store===filt);
+  const activeCnt = rows.filter(v=>v.active).length;
+  const retireCnt = rows.length-activeCnt;
+  let html = `<div class="small" style="margin-bottom:8px;">${filt}：${rows.length}台（現役${activeCnt}・退役${retireCnt}）</div>`;
+  html += rows.map(v=>`
+    <div class="card tap" onclick="openVehicle(${v.id})">
+      <div class="vrow">
+        <div class="vno">${v.no.replace("号車","")}</div>
+        <div class="vmeta">
+          <div class="l1">${v.store} ${v.no}</div>
+          <div class="l2"><span class="color-dot" style="background:${v.colorHex}"></span>${v.color}・${v.type}・…${v.plate}</div>
+        </div>
+        ${v.active?'<span class="badge active">現役</span>':`<span class="badge retire">退役 ${v.retireDate||""}</span>`}
+      </div>
+    </div>`).join("");
+  list.innerHTML = html;
+}
+function renderSheetNote(){
+  const area = $("sheetNote");
+  if(!area) return;
+  // 管理者モードの時だけ表示（店長・担当者では出さない）
+  if(currentRole==="admin"){
+    area.innerHTML = `
+      <div class="sheet-note">
+        <span class="ic">💻</span>
+        <span class="tx">PC・事務はGoogleスプレッドシートでも同じデータを管理できます（一覧・集計・印刷・明細突合）。アプリとスプシは同じデータを共有します。</span>
+      </div>`;
+  } else {
+    area.innerHTML = "";
+  }
+}
+function renderList(){ renderSheetNote(); renderFilters(); renderProgress(); renderVehicleRows(); }
+
+function openVehicle(id){
+  const v = VEHICLES.find(x=>x.id===id);
+  if(!v.active){ toast("退役車両：履歴の閲覧のみ（新規日報は不可）"); return; }
+  // 進行中があるか
+  const prog = loadProgress();
+  if(prog && prog.vehicleId===id){ resumeReport(); return; }
+  currentVehicle = v; startNewReport(v);
+}
+
+/* ===================== 車両特定 ===================== */
+function startQrScan(){ showScreen("qr"); }
+function qrConfirm(){
+  // ランダムに現役車を確定
+  const actives = VEHICLES.filter(v=>v.active);
+  const v = actives[Math.floor(Math.random()*actives.length)];
+  currentVehicle = v;
+  navStack = []; // QR入口は直接日報へ
+  const prog = loadProgress();
+  if(prog && prog.vehicleId===v.id){ toast(`${v.store} ${v.no} を読取（進行中を再開）`); resumeReport(); return; }
+  toast(`${v.store} ${v.no} を読み取りました`);
+  startNewReport(v);
+}
+function showWoffPick(){
+  const store = "額田中央店"; // ログイン店舗想定
+  const rows = VEHICLES.filter(v=>v.store===store && v.active);
+  const lastUsedId = 2; // 前回車両（デフォルト）
+  $("woffPickList").innerHTML = rows.map((v,i)=>`
+    <div class="pick-row" onclick="pickWoff(${v.id})">
+      <div class="vno" style="flex:0 0 40px;height:40px;font-size:14px;">${v.no.replace("号車","")}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;">${v.no} ${v.id===lastUsedId?'<span class="default-tag">前回</span>':''}</div>
+        <div class="small"><span class="color-dot" style="background:${v.colorHex}"></span>${v.color}・${v.type}・…${v.plate}</div>
+      </div>
+      <div style="color:var(--brand);font-size:18px;">›</div>
+    </div>`).join("");
+  showScreen("woff");
+}
+function pickWoff(id){
+  const v = VEHICLES.find(x=>x.id===id); currentVehicle=v;
+  const prog = loadProgress();
+  if(prog && prog.vehicleId===id){ resumeReport(); return; }
+  startNewReport(v);
+}
+
+/* ===================== 日報入力 ===================== */
+function vehicleBannerHtml(v){
+  return `<div class="vno">${v.no.replace("号車","")}</div>
+    <div><div class="l1">${v.store} ${v.no}</div>
+    <div class="l2"><span class="color-dot" style="background:${v.colorHex}"></span>${v.color}・${v.type}・…${v.plate}</div></div>`;
+}
+function renderInspect(){
+  $("inspList").innerHTML = INSPECT_ITEMS.map(nm=>`
+    <div class="insp">
+      <span class="nm">${nm}</span>
+      <div class="seg">
+        <button id="ins-${nm}-ok" class="${inspState[nm]==='ok'?'ok-on':''}" onclick="setInsp('${nm}','ok')">OK</button>
+        <button id="ins-${nm}-ng" class="${inspState[nm]==='ng'?'ng-on':''}" onclick="setInsp('${nm}','ng')">NG</button>
+      </div>
+    </div>`).join("");
+}
+function setInsp(nm,val){
+  inspState[nm]=val;
+  $(`ins-${nm}-ok`).className = val==='ok'?'ok-on':'';
+  $(`ins-${nm}-ng`).className = val==='ng'?'ng-on':'';
+}
+function allOk(){ INSPECT_ITEMS.forEach(nm=>setInsp(nm,'ok')); toast("全項目をOKにしました"); }
+
+function startNewReport(v){
+  reportPhase = "depart";
+  inspState = {}; INSPECT_ITEMS.forEach(nm=>inspState[nm]=null);
+  $("reportVehicle").innerHTML = vehicleBannerHtml(v);
+  $("fDate").value = todayStr();
+  $("fDriver").value = "鈴木 太郎";
+  $("fStartKm").value = v.lastEndKm;
+  $("prevKmTag").textContent = `前回帰社㎞ ${fmt(v.lastEndKm)} を初期表示`;
+  $("fStartTime").value = nowTime();
+  $("fEndKm").value=""; $("fEndTime").value=""; $("fFuelL").value=""; $("fFuelYen").value=""; $("fNote").value="";
+  $("distVal").textContent = "— km";
+  renderInspect();
+  setReportPhase("depart");
+  showScreen("report");
+}
+
+function setReportPhase(phase){
+  reportPhase = phase;
+  const depart = phase==="depart";
+  $("departBlock").style.display = depart ? "block":"none";
+  $("returnBlock").style.display = depart ? "none":"block";
+  $("reportStatePill").textContent = depart ? "① 出発入力" : "② 帰社入力（進行中）";
+  // 出発㎞ は帰社フェーズでは確定表示
+  $("fStartKm").readOnly = !depart;
+  if(!depart){ renderDepartReview(); }
+  if(depart){
+    $("reportActions").innerHTML = `
+      <button class="btn btn-primary" onclick="recordDepart()">出発を記録（進行中で保存）</button>
+      <p class="small center" style="margin-top:8px;">出発だけ先に記録 → 帰社後に続きから入力できます</p>`;
+  }else{
+    $("reportActions").innerHTML = `
+      <button class="btn btn-primary" onclick="recordReturn()">帰社を記録して送信</button>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn btn-sm btn-ghost" onclick="saveDraftAgain()">途中保存</button>
+        <button class="btn btn-sm btn-danger" onclick="discardProgress()">この運行を破棄</button>
+      </div>`;
+  }
+}
+
+function renderDepartReview(){
+  const chips = INSPECT_ITEMS.map(nm=>{
+    const v = inspState[nm];
+    const ng = v==='ng', set = v==='ok'||v==='ng';
+    const bg = ng?'#fdecec':(set?'#eaf6ee':'#eef1f4');
+    const fg = ng?'#d64545':(set?'#1f9d55':'#6b7785');
+    const lab = ng?'NG':(v==='ok'?'OK':'—');
+    return `<span style="display:inline-block;background:${bg};color:${fg};border-radius:8px;padding:2px 8px;font-size:11px;margin:3px 4px 0 0;">${nm}:${lab}</span>`;
+  }).join("");
+  $("departReview").innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span style="font-weight:700;color:#155a96;">🚚 出発の記録</span>
+      <button class="btn btn-sm btn-ghost" style="width:auto;padding:5px 12px;" onclick="editDepart()">修正</button>
+    </div>
+    <div style="font-size:12px;color:#6b7785;margin-bottom:6px;">${$("fDriver").value} ／ ${$("fDate").value}</div>
+    <div style="display:flex;gap:20px;margin-bottom:2px;">
+      <div><span style="font-size:11px;color:#6b7785;">出発㎞</span><br><b>${fmt(Number($("fStartKm").value)||0)}</b></div>
+      <div><span style="font-size:11px;color:#6b7785;">開始時刻</span><br><b>${$("fStartTime").value||"—"}</b></div>
+    </div>
+    <div style="margin-top:4px;">${chips}</div>`;
+}
+function editDepart(){
+  setReportPhase("depart");
+  $("reportStatePill").textContent = "① 出発入力（修正中）";
+  $("reportActions").innerHTML = `<button class="btn btn-primary" onclick="backToReturn()">出発内容を更新して帰社入力へ戻る</button>`;
+}
+function backToReturn(){
+  const prog = loadProgress()||{};
+  prog.startKm = Number($("fStartKm").value)||prog.startKm;
+  prog.startTime = $("fStartTime").value||prog.startTime;
+  prog.inspect = {...inspState};
+  prog.ngItems = INSPECT_ITEMS.filter(nm=>inspState[nm]==='ng');
+  saveProgress(prog);
+  setReportPhase("return");
+  calcDistance();
+  toast("出発内容を更新しました");
+}
+function calcDistance(){
+  const s = Number($("fStartKm").value), e = Number($("fEndKm").value);
+  if(e && e>=s){ $("distVal").textContent = fmt(e-s)+" km"; }
+  else if(e && e<s){ $("distVal").textContent = "帰社㎞が出発㎞より小さい"; }
+  else $("distVal").textContent = "— km";
+}
+
+/* --- localStorage 進行中レコード --- */
+function saveProgress(obj){ localStorage.setItem(LS_KEY, JSON.stringify(obj)); }
+function loadProgress(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){ return null; } }
+function clearProgress(){ localStorage.removeItem(LS_KEY); }
+
+function recordDepart(){
+  const ng = INSPECT_ITEMS.filter(nm=>inspState[nm]==='ng');
+  const prog = {
+    vehicleId: currentVehicle.id,
+    driver: $("fDriver").value,
+    date: $("fDate").value,
+    startKm: Number($("fStartKm").value)||currentVehicle.lastEndKm,
+    startTime: $("fStartTime").value||nowTime(),
+    inspect: {...inspState},
+    ngItems: ng,
+  };
+  saveProgress(prog);
+  toast("出発を記録しました（進行中で保存）");
+  goHome();
+}
+
+// 記録後の着地点（進行中バナーが見える画面）。担当者は履歴、それ以外は一覧。
+function goHome(){
+  navStack=[];
+  const dest = currentRole==="driver" ? "history" : "list";
+  navTo(dest);
+  $("backBtn").style.display="none";
+}
+
+function resumeReport(){
+  const prog = loadProgress(); if(!prog) return;
+  const v = VEHICLES.find(x=>x.id===prog.vehicleId); currentVehicle=v;
+  inspState = prog.inspect || {};
+  $("reportVehicle").innerHTML = vehicleBannerHtml(v);
+  $("fDate").value = prog.date; $("fDriver").value = prog.driver;
+  $("fStartKm").value = prog.startKm; $("fStartTime").value = prog.startTime;
+  $("prevKmTag").textContent = `前回帰社㎞ ${fmt(v.lastEndKm)}`;
+  $("fEndTime").value = nowTime();
+  $("fEndKm").value=""; $("distVal").textContent="— km";
+  renderInspect();
+  setReportPhase("return");
+  showScreen("report");
+  toast("進行中の日報を再開しました");
+}
+
+function saveDraftAgain(){
+  const prog = loadProgress()||{}; prog.endKmDraft = $("fEndKm").value; saveProgress(prog);
+  toast("途中まで保存しました（再開できます）");
+}
+function discardProgress(){
+  clearProgress(); toast("進行中の運行を破棄しました");
+  goHome();
+}
+
+function recordReturn(){
+  const s = Number($("fStartKm").value), e = Number($("fEndKm").value);
+  if(!e){ toast("帰社㎞を入力してください"); return; }
+  if(e<s){ toast("帰社㎞が出発㎞より小さいです"); return; }
+  const dist = e-s;
+  const fuelL = $("fFuelL").value;
+  // 車両の lastEndKm を更新（デモ内で蓄積を体感）
+  currentVehicle.lastEndKm = e;
+  clearProgress();
+  $("sumKm").textContent = fmt(dist)+" km";
+  $("sumFuel").textContent = fuelL ? fuelL+" ℓ" : "なし";
+  $("modal").classList.add("show");
+}
+function closeModal(){ $("modal").classList.remove("show"); goHome(); }
+
+function toggleBlock(id, btn){
+  const el = $(id); const open = el.style.display!=="none";
+  el.style.display = open ? "none":"block";
+  btn.textContent = open ? "＋ 入力する" : "− 閉じる";
+}
+
+/* ===================== 給油チェック ===================== */
+function renderFuel(){
+  const rows = FUEL_ALERTS.filter(a=>isStoreVisible(a.vehicle));
+  if(rows.length===0){ $("fuelAlerts").innerHTML = `<div class="card center small">自店舗の対象データはありません</div>`; return; }
+  $("fuelAlerts").innerHTML = rows.map(a=>`
+    <div class="alert-row ${a.flag?'':'ok'}">
+      <div class="top">
+        <div><strong>${a.vehicle}</strong> <span class="small">…${a.plate}</span></div>
+        <div class="small mono">${a.date}</div>
+      </div>
+      <div class="small mono">給油 ${a.liters} ℓ ／ ${a.yen} 円</div>
+      <div class="reason">${a.reason}</div>
+    </div>`).join("");
+}
+
+/* ===================== メンテ ===================== */
+function renderMaint(){
+  const rows = MAINT.filter(m=>isStoreVisible(m.vehicle));
+  if(rows.length===0){ $("maintList").innerHTML = `<div class="card center small">自店舗の対象データはありません</div>`; }
+  else $("maintList").innerHTML = rows.map(m=>`
+    <div class="card maint-card ${m.soon?'soon':''}">
+      <div class="head">
+        <div>
+          <div style="font-weight:700;">${m.vehicle} <span class="small">…${m.plate}</span></div>
+          <div class="small">${m.kind}（${m.basis}）</div>
+        </div>
+        <div class="big ${m.soon?'red':'amber'}">${m.metric}</div>
+      </div>
+      <div class="small" style="margin-top:6px;">${m.detail}</div>
+    </div>`).join("");
+  // nav の通知バッジ（メンテタブが存在する役割のみ）
+  const cnt = rows.filter(m=>m.soon).length;
+  const btn = document.querySelector('#nav button[data-sc="maint"]');
+  if(btn && cnt>0 && !btn.querySelector(".dot")){ const d=document.createElement("span"); d.className="dot"; d.textContent=cnt; btn.appendChild(d); }
+}
+
+/* ===================== 過去日報（担当者向け） ===================== */
+function renderHistory(){
+  // 進行中バナー（担当者も再開できる）
+  const histArea = $("progressAreaHist");
+  const prog = loadProgress();
+  if(prog){
+    const v = VEHICLES.find(x=>x.id===prog.vehicleId);
+    histArea.innerHTML = `
+      <div class="progress-banner" onclick="resumeReport()">
+        <div class="ic">🕒</div>
+        <div style="flex:1;">
+          <div class="t">進行中の日報があります</div>
+          <div class="s">${v.store} ${v.no}（…${v.plate}） ／ 出発 ${prog.startTime} ／ タップで帰社入力へ</div>
+        </div>
+        <div style="font-size:18px;color:var(--warn);">›</div>
+      </div>`;
+  } else histArea.innerHTML = "";
+  $("historyList").innerHTML = MY_HISTORY.map(h=>`
+    <div class="card">
+      <div class="vrow">
+        <div class="vmeta">
+          <div class="l1">${h.vehicle} <span class="small">…${h.plate}</span></div>
+          <div class="l2">${h.date} ／ 走行 ${h.dist} ／ 給油 ${h.fuel}</div>
+        </div>
+        <span class="badge active">記録済</span>
+      </div>
+    </div>`).join("");
+}
+
+/* ===================== 役割切替 ===================== */
+function renderNav(){
+  const nav = $("nav");
+  nav.innerHTML = ROLE_NAV[currentRole].map(n=>
+    `<button data-sc="${n.sc}" onclick="navTo('${n.sc}')"><span class="ni">${n.ni}</span>${n.t}</button>`
+  ).join("");
+}
+function setRole(role){
+  currentRole = role;
+  // 店長は店舗固定・他役割は全店舗に戻す
+  currentFilter = (role==="manager") ? MANAGER_STORE : "全店舗";
+  // ヘッダー表記・トグル on 状態
+  $("roleLabel").textContent = ROLE_LABEL[role];
+  document.querySelectorAll("#roleSeg button").forEach(b=>b.classList.toggle("on", b.dataset.role===role));
+  // nav 再描画 → 各画面再描画
+  renderNav();
+  renderList(); renderFuel(); renderMaint();
+  // ホーム画面へ遷移（役割で見える範囲が即変わる）
+  navStack=[]; navTo(ROLE_HOME[role]);
+  toast(`役割：${ROLE_LABEL[role]} に切替`);
+}
+
+/* ===================== 初期化 ===================== */
+function init(){
+  renderNav();
+  renderList(); renderFuel(); renderMaint(); renderHistory();
+  navTo(ROLE_HOME[currentRole]); // 既定は管理者ホーム（一覧）
+}
+init();
+</script>
+</body>
+</html>
