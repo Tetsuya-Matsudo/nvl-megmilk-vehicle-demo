@@ -501,6 +501,13 @@ let reportPhase = "depart";    // depart | return
 let inspState = {};            // 点検: name -> "ok"|"ng"|null
 let navStack = [];             // 戻る用
 const LS_KEY = "megumilk_demo_progress_v1";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx-hYk0J_wGV1UrrxMQPyIoxX_ojC9iajNdlMS0jUqXkL5GGNfGB5KMYZ2DmIAT0C2R/exec";
+const GAS_TOKEN = "5209a3038ccc56e4";
+function sendToSheet(payload){
+  try{
+    fetch(GAS_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+  }catch(e){}
+}
 
 // 役割ごとの定義
 const ROLE_LABEL = {admin:"管理者", manager:"店長（額田中央店）", driver:"担当者"};
@@ -845,6 +852,14 @@ function recordReturn(){
   if(e<s){ toast("帰社㎞が出発㎞より小さいです"); return; }
   const dist = e-s;
   const fuelL = $("fFuelL").value;
+  const ng = INSPECT_ITEMS.filter(nm=>inspState[nm]==='ng');
+  sendToSheet({
+    token: GAS_TOKEN,
+    date: $("fDate").value, store: currentVehicle.store, no: currentVehicle.no, plate: currentVehicle.plate,
+    driver: $("fDriver").value, startTime: $("fStartTime").value, endTime: $("fEndTime").value,
+    startKm: s, endKm: e, fuelL: $("fFuelL").value, fuelYen: $("fFuelYen").value,
+    inspect: ng.length ? ("NG:"+ng.join("/")) : "OK", temp: $("fTemp").value, note: $("fNote").value
+  });
   // 車両の lastEndKm を更新（デモ内で蓄積を体感）
   currentVehicle.lastEndKm = e;
   clearProgress();
