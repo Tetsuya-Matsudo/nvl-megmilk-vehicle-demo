@@ -406,6 +406,26 @@
     <!-- ===== メンテリマインド ===== -->
     <div class="screen" id="sc-maint">
       <h2 class="sec">メンテ・リマインド</h2>
+      <div id="maintAdd" style="display:none;margin-bottom:12px;">
+        <button class="btn btn-sm btn-ghost" style="width:auto;padding:8px 14px;" onclick="toggleMaintForm(this)">＋ メンテ記録を追加</button>
+        <div class="card" id="maintForm" style="display:none;margin-top:8px;">
+          <div class="field"><label>種別</label>
+            <select id="mKind"><option>車検</option><option>オイル交換</option><option>タイヤ交換</option><option>その他</option></select>
+          </div>
+          <div class="field"><label>対象車両</label><select id="mVehicle"></select></div>
+          <div class="km-row">
+            <div class="field"><label>実施日</label><input type="date" id="mDate"></div>
+            <div class="field"><label>実施㎞</label><input type="number" id="mKm" inputmode="numeric"></div>
+          </div>
+          <div class="field"><label>次回予定（日付 or 走行㎞）</label><input type="text" id="mNext" placeholder="例：2027/06 ／ 88,000km"></div>
+          <div class="km-row">
+            <div class="field"><label>費用(円)</label><input type="number" id="mCost" inputmode="numeric"></div>
+            <div class="field"><label>判定基準</label><select id="mBasis"><option>日付</option><option>走行km</option></select></div>
+          </div>
+          <div class="field"><label>メモ</label><input type="text" id="mMemo" placeholder="業者・内容など"></div>
+          <button class="btn btn-primary" onclick="addMaint()">この内容で追加（スプシに記録）</button>
+        </div>
+      </div>
       <div id="maintList"></div>
       <p class="small center">※ 車検は日付、オイル・消耗品は走行kmで自動判定</p>
     </div>
@@ -891,7 +911,38 @@ function renderFuel(){
 }
 
 /* ===================== メンテ ===================== */
+function renderMaintAdd(){
+  const wrap = $("maintAdd");
+  if(currentRole!=="admin"){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  const sel = $("mVehicle");
+  if(sel && !sel.dataset.filled){
+    sel.innerHTML = VEHICLES.filter(v=>v.active).map(v=>`<option value="${v.store}|${v.no}|${v.plate}">${v.store} ${v.no}（…${v.plate}）</option>`).join("");
+    sel.dataset.filled="1";
+  }
+}
+function toggleMaintForm(btn){
+  const f = $("maintForm");
+  const open = f.style.display!=="none";
+  f.style.display = open ? "none":"block";
+  btn.textContent = open ? "＋ メンテ記録を追加" : "− 閉じる";
+}
+function addMaint(){
+  const kind = $("mKind").value;
+  const v = ($("mVehicle").value||"").split("|");
+  if(v.length<3){ toast("対象車両を選んでください"); return; }
+  const store=v[0], no=v[1], plate=v[2];
+  const date=$("mDate").value, km=$("mKm").value, next=$("mNext").value, cost=$("mCost").value, memo=$("mMemo").value, basis=$("mBasis").value;
+  const detail = [date?("実施 "+date):"", km?(fmt(Number(km))+"km"):"", cost?("¥"+fmt(Number(cost))):"", memo].filter(Boolean).join(" ／ ");
+  sendToSheet({ token:GAS_TOKEN, type:"maint", vehicle:store+" "+no, plate:plate, kind:kind, next:next, detail:detail, basis:basis });
+  MAINT.unshift({soon:false, vehicle:store+" "+no, plate:plate, kind:kind, metric:next||"登録", detail:detail, basis:basis});
+  toast("メンテ記録をスプシに追加しました");
+  $("maintForm").style.display="none";
+  $("mKm").value=""; $("mNext").value=""; $("mCost").value=""; $("mMemo").value="";
+  renderMaint();
+}
 function renderMaint(){
+  renderMaintAdd();
   const rows = MAINT.filter(m=>isStoreVisible(m.vehicle));
   if(rows.length===0){ $("maintList").innerHTML = `<div class="card center small">自店舗の対象データはありません</div>`; }
   else $("maintList").innerHTML = rows.map(m=>`
